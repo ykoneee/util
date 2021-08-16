@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
 
-from widar_util.re_inpl_widar3 import dfs
+from widar_util.widar3_origin import dfs
 
 dfs_path = Path("/media/yk/D4FA828F299D817A/DFS.zip")
 csi_path = Path("/media/yk/linux_data/csi_dataset_survey/dataset/widar/mat_save_folder")
