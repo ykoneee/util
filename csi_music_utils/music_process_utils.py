@@ -1,5 +1,5 @@
 from dataset_manager import CSI_ZARR_DATASET, ZARR_DATASET_CREATER
-from widar_util.re_inpl_filter import apply_csi_filter
+from widar_util.signal_filter import apply_csi_filter
 
 # print("in music_process_utils.py")
 import concurrent.futures
