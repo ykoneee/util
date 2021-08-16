@@ -1,5 +1,5 @@
 from dataset_manager import CSI_ZARR_DATASET, ZARR_DATASET_CREATER
-from widar_reinpl_series.re_inpl_filter import apply_csi_filter
+from widar_util.re_inpl_filter import apply_csi_filter
 
 # print("in music_process_utils.py")
 import concurrent.futures
@@ -15,7 +15,7 @@ from sklearn.cluster import DBSCAN
 
 from . import NDMUSIC, CSIBaseModel
 from math_utils import split_array_bychunk, minmax_scale, local_maximum
-from widar_reinpl_series import gen_fir_filter
+from widar_util import gen_fir_filter
 
 
 from time import time

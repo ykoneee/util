@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy import signal, io
 
-from widar_reinpl_series.re_inpl_widar3 import pca_matlab, tfrsp
+from widar_util.re_inpl_widar3 import pca_matlab, tfrsp
 
 
 def dfs(csi_data, samp_rate=1000):

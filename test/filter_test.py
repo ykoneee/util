@@ -7,8 +7,8 @@ import scipy.ndimage
 
 from dataset_manager import CSI_ZARR_DATASET
 from math_utils import complex_to_amp_pha
-from widar_reinpl_series import gen_iir_filter, gen_fir_filter, conj_multi_csi
-from widar_reinpl_series.re_inpl_filter import apply_csi_filter
+from widar_util import gen_iir_filter, gen_fir_filter, conj_multi_csi
+from widar_util.re_inpl_filter import apply_csi_filter
 
 
 def full_extent(ax, pad=0.0):
