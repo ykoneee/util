@@ -4,7 +4,7 @@ import time
 import numpy as np
 import scipy.signal
 
-from math_utils import complex_to_amp_pha
+from util.math_utils import complex_to_amp_pha
 
 
 def filter_for_complex(x, f):
@@ -15,6 +15,10 @@ def apply_csi_filter(x, filter):
     amp, pha = complex_to_amp_pha(x)
     x = filter(x=amp) * np.exp(1j * filter(x=pha))
     return x
+
+
+def np_contiguous(f):
+    return lambda *a, **ka: np.ascontiguousarray(f(*a, **ka))
 
 
 def gen_fir_filter(sample_rate, irlen=None):
@@ -34,36 +38,29 @@ def gen_fir_filter(sample_rate, irlen=None):
     b = scipy.signal.firls(27, f, m)
     a = 1
 
-    return functools.partial(
-        scipy.signal.filtfilt, b=b, a=a, axis=0, method="gust", irlen=irlen
-    )
+    ret = functools.partial(scipy.signal.filtfilt, b=b, a=a, axis=0, method="gust", irlen=irlen)
+    return np_contiguous(ret)
 
 
-def gen_iir_filter(sample_rate, output="sos", bi_filter=True):
+def gen_iir_filter(sample_rate, c_freq, c_order, mode, output="sos", bi_filter=True):
     samp_rate = sample_rate
     half_rate = samp_rate / 2
-    uppe_stop = 60
 
-    res = scipy.signal.butter(6, uppe_stop / half_rate, "lowpass", output=output)
-
-    # eps = 1e-9
-    # z, p, k = scipy.signal.tf2zpk(lb, la)
-    # r = np.max(np.abs(p))
-    # approx_impulse_len = int(np.ceil(np.log(eps) / np.log(r)))
-    # print(f"approx_impulse_len:{approx_impulse_len}")
+    res = scipy.signal.butter(c_order, c_freq / half_rate, mode, output=output)
 
     if output == "sos":
         if bi_filter:
-            return functools.partial(scipy.signal.sosfiltfilt, sos=res, axis=0)
+            ret = functools.partial(scipy.signal.sosfiltfilt, sos=res, axis=0)
         else:
-            return functools.partial(scipy.signal.sosfilt, sos=res, axis=0)
+            ret = functools.partial(scipy.signal.sosfilt, sos=res, axis=0)
     elif output == "ba":
         if bi_filter:
-            return functools.partial(
-                scipy.signal.filtfilt, b=res[0], a=res[1], axis=0, method="gust"
-            )
+            ret = functools.partial(scipy.signal.filtfilt, b=res[0], a=res[1], axis=0, method="gust")
         else:
-            return functools.partial(scipy.signal.lfilter, b=res[0], a=res[1], axis=0)
+            ret = functools.partial(scipy.signal.lfilter, b=res[0], a=res[1], axis=0)
+    else:
+        raise Exception
+    return np_contiguous(ret)
 
 
 def fir_speed_test():

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import ndimage
+import scipy.interpolate
 
 
 def complex_to_amp_pha(x, unwrap_axis=0):
@@ -35,26 +36,22 @@ def array_debug_infor(array):
     print(array.min(), array.max(), array.mean())
 
 
-def split_array_bychunk(array, chunksize, cat_residual=True):
-    len_ = len(array) // chunksize * chunksize
-    array, array_residual = array[:len_], array[len_:]
-    # array = np.split(array, len_ // chunksize)
-    array = [
-        array[i * chunksize : (i + 1) * chunksize]
-        for i in range(len(array) // chunksize)
-    ]
+def split_array_bychunk(arr, chunksize, cat_residual=True):
+    len_ = len(arr) // chunksize * chunksize
+    arr, array_res = arr[:len_], arr[len_:]
+    arr = [arr[i * chunksize : (i + 1) * chunksize] for i in range(len(arr) // chunksize)]
     if cat_residual:
-        if len(array_residual) == 0:
-            return array
+        if len(array_res) == 0:
+            return arr
         else:
-            return array + [
-                array_residual,
+            return arr + [
+                array_res,
             ]
     else:
-        if len(array_residual) == 0:
-            return array, None
+        if len(array_res) == 0:
+            return arr, None
         else:
-            return array, array_residual
+            return arr, array_res
 
 
 def csi_split(data, chunk_size=100):
@@ -81,6 +78,20 @@ def randcn(shape):
     x += np.random.randn(*shape)
     x *= np.sqrt(0.5)
     return x
+
+
+def interpolation_1D(x, point_n, axis=0, kind="slinear"):
+    if x.shape[axis] == point_n:
+        return x
+    f = scipy.interpolate.interp1d(
+        np.linspace(0, 1024, x.shape[axis]),
+        x,
+        axis=axis,
+        copy=False,
+        kind=kind,
+        assume_sorted=True,
+    )
+    return f(np.linspace(0, 1024, point_n))
 
 
 if __name__ == "__main__":

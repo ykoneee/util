@@ -8,6 +8,8 @@ import scipy.io
 import scipy.linalg
 import scipy.signal
 
+from util.widar_util import pca_matlab, tfrsp
+
 
 def elesiver_np_process():
     root_path = Path("/media/yk/linux_data/csi_dataset_survey/dataset/Wih2h_dataset")
@@ -17,91 +19,18 @@ def elesiver_np_process():
         ret = []
         print(volunteer)
         label = np.load(root_path / (volunteer + "_label.npy"), allow_pickle=True) - 1
-        raw = np.load(root_path / (volunteer + "_raw.npy"), allow_pickle=True)[
-            label == 0
-        ]
+        raw = np.load(root_path / (volunteer + "_raw.npy"), allow_pickle=True)[label == 0]
         for data in raw:
             csi_data = data["CSI"][:, 0, ...].reshape(-1, 90)
             # csi_data = data["CSI"].mean(1).reshape(-1, 90)
 
-            sample_f = 1 / (
-                (data["timestamp_low"][-1] - data["timestamp_low"][0])
-                * 1e-6
-                / (data["timestamp_low"].shape[0])
-            )
+            sample_f = 1 / ((data["timestamp_low"][-1] - data["timestamp_low"][0]) * 1e-6 / (data["timestamp_low"].shape[0]))
             # print(sample_f)
             doppler_spectrum = dfs(csi_data, samp_rate=int(sample_f))
             # doppler_spectrum = dfs(csi_data,)
             ret.append(doppler_spectrum)
         break
     return ret
-
-
-def tfrsp(signal, timestamps, n_fbins, fwindow):
-    if n_fbins % 2 == 0:
-        freqs = np.hstack((np.arange(n_fbins / 2), np.arange(-n_fbins / 2, 0)))
-    else:
-        freqs = np.hstack(
-            (np.arange((n_fbins - 1) / 2), np.arange(-(n_fbins - 1) / 2, 0))
-        )
-    freqs = freqs.astype(float) / n_fbins
-    tfr = np.zeros((n_fbins, timestamps.shape[0]), dtype=complex)
-    # ===============================================
-    lh = (fwindow.shape[0] - 1) // 2
-    rangemin = min([round(n_fbins / 2.0) - 1, lh])
-    starts = -np.min(
-        np.c_[rangemin * np.ones(timestamps.shape), timestamps - 1], axis=1
-    ).astype(int)
-    ends = np.min(
-        np.c_[rangemin * np.ones(timestamps.shape), signal.shape[0] - timestamps],
-        axis=1,
-    ).astype(int)
-    conj_fwindow = np.conj(fwindow)
-    for icol in range(tfr.shape[1]):
-        ti = timestamps[icol]
-        start = starts[icol]
-        end = ends[icol]
-        tau = np.arange(start, end + 1).astype(int)
-        indices = np.remainder(n_fbins + tau, n_fbins)
-        tfr[indices.astype(int), icol] = (
-            signal[ti + tau - 1]
-            * conj_fwindow[lh + tau]
-            / np.linalg.norm(fwindow[lh + tau])
-        )
-    tfr = np.abs(np.fft.fft(tfr, axis=0)) ** 2
-    return tfr, freqs
-
-
-def freq2scale(freq, w_name, fs):
-    return pywt.central_frequency(w_name) / (freq * fs)
-
-
-def pca_matlab(X):
-    def complex_sign(complex):
-        return complex / abs(complex)
-
-    center = X - X.mean(axis=0)
-    U, S, V = scipy.linalg.svd(center, full_matrices=False)
-
-    # score = U * S
-    latent = S ** 2 / (X.shape[0] - 1)
-
-    V = V.conj().T  # 使所有中间结果与matlab结果对齐
-
-    # flip eigenvectors' sign to enforce deterministic output
-    max_abs_idx = np.argmax(abs(V), axis=0)
-    colsign = complex_sign(
-        V[
-            max_abs_idx,
-            range(V.shape[0]),
-        ]
-    )
-    U *= colsign
-    V *= colsign[None, :]
-    score = U * S
-    # result:  center == U @ np.diag(S) @ V.conj().T
-    coeff = V
-    return coeff, score, latent
 
 
 def dfs(csi_data, samp_rate=1000):
@@ -119,10 +48,7 @@ def dfs(csi_data, samp_rate=1000):
     [lu, ld] = scipy.signal.butter(uppe_orde, uppe_stop / half_rate, "lowpass")
     [hu, hd] = scipy.signal.butter(lowe_orde, lowe_stop / half_rate, "highpass")
 
-    freq_bins_unwrap = (
-        np.concatenate([np.arange(0, samp_rate / 2), np.arange(-samp_rate / 2, 0)])
-        / samp_rate
-    )
+    freq_bins_unwrap = np.concatenate([np.arange(0, samp_rate / 2), np.arange(-samp_rate / 2, 0)]) / samp_rate
 
     freq_lpf_sele = np.logical_and(
         freq_bins_unwrap <= uppe_stop / samp_rate,
@@ -162,9 +88,7 @@ def dfs(csi_data, samp_rate=1000):
 
     beta = 1000 * alpha_sum / (30 * rx_acnt)
     for jj in range(30 * rx_acnt):
-        csi_data_ref_adj[:, jj] = (abs(csi_data_ref[:, jj]) + beta) * np.exp(
-            1j * np.angle(csi_data_ref[:, jj])
-        )
+        csi_data_ref_adj[:, jj] = (abs(csi_data_ref[:, jj]) + beta) * np.exp(1j * np.angle(csi_data_ref[:, jj]))
 
     # % Conj Mult
     conj_mult = csi_data_adj * np.conj(csi_data_ref_adj)
@@ -187,9 +111,7 @@ def dfs(csi_data, samp_rate=1000):
         freq_time_prof_allfreq = pywt.cwt(
             conj_mult_pca,
             freq2scale(
-                np.concatenate(
-                    [np.arange(0, samp_rate / 2) + 1, np.arange(-samp_rate / 2, 0)]
-                ),
+                np.concatenate([np.arange(0, samp_rate / 2) + 1, np.arange(-samp_rate / 2, 0)]),
                 "cmor4-1",
                 1 / samp_rate,
             ),
@@ -202,9 +124,7 @@ def dfs(csi_data, samp_rate=1000):
         if not window_size % 2:
             window_size = window_size + 1
         window = np.exp(np.log(0.005) * np.linspace(-1, 1, window_size) ** 2)
-        freq_time_prof_allfreq, _ = tfrsp(
-            conj_mult_pca, time_instance, samp_rate, window
-        )
+        freq_time_prof_allfreq, _ = tfrsp(conj_mult_pca, time_instance, samp_rate, window)
     # % Select Concerned Freq
     freq_time_prof: np.ndarray = freq_time_prof_allfreq[freq_lpf_sele, :]
     # % Spectrum Normalization By Sum For Each Snapshot
@@ -233,9 +153,7 @@ def dfs(csi_data, samp_rate=1000):
 
 
 def widar3_dfs(imax):
-    csi_path = Path(
-        "/media/yk/linux_data/csi_dataset_survey/dataset/widar/mat_save_folder"
-    )
+    csi_path = Path("/media/yk/linux_data/csi_dataset_survey/dataset/widar/mat_save_folder")
     ret = []
     for i, n0 in enumerate(sorted(csi_path.glob("*.mat"))):
         print(i)
